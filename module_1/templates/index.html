@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kishore Narayanan</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+    <div class="navbar">
+        <a class="active" href="/">About</a>
+        <a href="/projects">Projects</a>
+        <a href="/contact">Contact</a>
+    </div>
+
+    <div class="container">
+
+        <div class="bio">
+
+            <h1>Kishore Narayanan (he/him)</h1>
+
+            <h2>Student at Johns Hopkins University</h2>
+
+            <p>
+                Kishore Narayanan recently received his bachelor's degree in Neuroscience at the University of Alabama at Birmingham, and is currently pursuing a Master's degree at Johns Hopkins University. He is currently learning Python, Flask, HTML, CSS, and GitHub.
+                This website was created for the Modern Software Concepts course.
+            </p>
+
+            <p>
+                Although he has a background in neuroscience and medicine, Kishore is interested in learning more about programming, software development, and artificial intelligence as a whole.
+            </p>
+
+        </div>
+
+        <div class="image-section">
+
+            <img src="{{ url_for('static', filename='kishore_website.PNG') }}"
+        alt="Profile Picture">
+
+        </div>
+
+    </div>
+
+</body>
+</html>
