@@ -10,7 +10,7 @@ an About page, Publications page, and Contact page.
 How to Run the Project:
 
 1. Open terminal
-2. Navigate to the module_1 folder
+2. cd module_1 (Navigate to module_1)
 3. Run the following command:
 
 python3 run.py
