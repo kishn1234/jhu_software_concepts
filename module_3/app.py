@@ -27,7 +27,7 @@ def pull_data():
     try:
         subprocess.run(["python3", "load_data.py"])
 
-        message = "Pull Data completed. New Grad Cafe data was scraped and added to PostgreSQL without deleting existing usable records."
+        message = "Pull Data completed. Applicant records from the Module 2 applicant_data.json file were loaded into PostgreSQL. Existing records were preserved and duplicate records were skipped."
     except:
         message = "Pull Data could not complete. Please check the terminal for error details."
 
