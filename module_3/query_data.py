@@ -36,15 +36,15 @@ def main():
 
     run_query("Q3 Average GPA, GRE, GRE V, GRE AW", """
         SELECT
-            ROUND(AVG(NULLIF(gpa, '')::numeric), 2),
-            ROUND(AVG(NULLIF(gre, '')::numeric), 2),
-            ROUND(AVG(NULLIF(gre_v, '')::numeric), 2),
-            ROUND(AVG(NULLIF(gre_aw, '')::numeric), 2)
-        FROM applicants;
+            ROUND(AVG(gpa)::numeric, 2),
+            ROUND(AVG(gre)::numeric, 2),
+            ROUND(AVG(gre_v)::numeric, 2),
+            ROUND(AVG(gre_aw)::numeric, 2)
+    FROM applicants;
     """)
 
     run_query("Q4 Average GPA of American students in Fall 2026", """
-        SELECT ROUND(AVG(NULLIF(gpa, '')::numeric), 2)
+        SELECT ROUND(AVG(gpa)::numeric, 2)
         FROM applicants
         WHERE term = 'Fall 2026'
         AND us_or_international = 'American';
@@ -60,7 +60,7 @@ def main():
     """)
 
     run_query("Q6 Average GPA of Fall 2026 accepted applicants", """
-        SELECT ROUND(AVG(NULLIF(gpa, '')::numeric), 2)
+        SELECT ROUND(AVG(gpa)::numeric, 2)
         FROM applicants
         WHERE term = 'Fall 2026'
         AND status LIKE 'Accepted%';
@@ -77,7 +77,7 @@ def main():
     run_query("Q8 2026 PhD Computer Science acceptances for selected universities", """
         SELECT COUNT(*)
         FROM applicants
-        WHERE date_added LIKE '%2026%'
+        WHERE EXTRACT(YEAR FROM date_added) = 2026
         AND status LIKE 'Accepted%'
         AND degree = 'PhD'
         AND program ILIKE '%Computer Science%'
@@ -92,7 +92,7 @@ def main():
     run_query("Q9 Same as Q8 using LLM generated fields", """
         SELECT COUNT(*)
         FROM applicants
-        WHERE date_added LIKE '%2026%'
+        WHERE EXTRACT(YEAR FROM date_added) = 2026
         AND status LIKE 'Accepted%'
         AND degree = 'PhD'
         AND llm_generated_program ILIKE '%Computer Science%'
