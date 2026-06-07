@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Grad Cafe Data Analysis</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Grad Cafe Data Analysis</h1>
+        <p>This page displays analysis results from the PostgreSQL applicants database.</p>
+
+        {% for result in results %}
+            <div class="card">
+                <h2>{{ result.number }}</h2>
+                <h3>{{ result.question }}</h3>
+
+                {% for row in result.rows %}
+                    <p class="answer">
+                        Answer:
+                        {% for item in row %}
+                            {{ item }}{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    </p>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+</body>
+</html>
