@@ -13,7 +13,7 @@ from src.load_data import (
     get_field,
 )
 
-
+@pytest.mark.db
 @pytest.mark.parametrize("value, expected", [
     ("3.5", 3.5),
     ("", None),
@@ -23,7 +23,7 @@ from src.load_data import (
 def test_clean_float(value, expected):
     assert clean_float(value) == expected
 
-
+@pytest.mark.db
 @pytest.mark.parametrize("value, expected", [
     ("3.8", 3.8),
     ("4.5", None),
@@ -32,7 +32,7 @@ def test_clean_float(value, expected):
 def test_clean_gpa(value, expected):
     assert clean_gpa(value) == expected
 
-
+@pytest.mark.db
 @pytest.mark.parametrize("value, expected", [
     ("165", 165.0),
     ("100", None),
@@ -41,7 +41,7 @@ def test_clean_gpa(value, expected):
 def test_clean_gre(value, expected):
     assert clean_gre(value) == expected
 
-
+@pytest.mark.db
 @pytest.mark.parametrize("value, expected", [
     ("4.0", 4.0),
     ("7.0", None),
@@ -50,20 +50,20 @@ def test_clean_gre(value, expected):
 def test_clean_gre_aw(value, expected):
     assert clean_gre_aw(value) == expected
 
-
+@pytest.mark.db
 def test_clean_date_valid():
     assert clean_date("May 31, 2026") == "2026-05-31"
 
-
+@pytest.mark.db
 def test_clean_date_invalid():
     assert clean_date("bad date") is None
 
-
+@pytest.mark.db
 def test_find_value_after_label():
     text = "Accepted Fall 2026 GPA 3.78"
     assert find_value_after_label(text, "GPA") == "3.78"
 
-
+@pytest.mark.db
 def test_find_gre_values():
     text = "International GRE 159 GRE V 170 GRE AW 3.50 GPA 3.78"
 
@@ -71,12 +71,13 @@ def test_find_gre_values():
     assert find_gre_v(text) == "170"
     assert find_gre_aw(text) == "3.50"
 
-
+@pytest.mark.db
 def test_get_field():
     row = {"Degree": "Masters"}
 
     assert get_field(row, "degree", "Degree") == "Masters"
 
+@pytest.mark.db
 def test_build_applicant_record_with_direct_fields():
     from src.load_data import build_applicant_record
 
@@ -109,7 +110,7 @@ def test_build_applicant_record_with_direct_fields():
     assert record[12] == 160.0
     assert record[13] == 4.5
 
-
+@pytest.mark.db
 def test_build_applicant_record_with_rubric_style_fields():
     from src.load_data import build_applicant_record
 
@@ -144,7 +145,7 @@ def test_build_applicant_record_with_rubric_style_fields():
     assert record[14] == "Computer Science"
     assert record[15] == "Stanford University"
 
-
+@pytest.mark.db
 def test_build_applicant_record_extracts_scores_from_raw_text():
     from src.load_data import build_applicant_record
 
@@ -170,7 +171,7 @@ def test_build_applicant_record_extracts_scores_from_raw_text():
 from pathlib import Path
 from src import load_data
 
-
+@pytest.mark.db
 def test_find_helpers_return_none_for_missing_values():
     assert load_data.find_value_after_label(None, "GPA") is None
     assert load_data.find_value_after_label("No GPA here", "GPA") == "here"
@@ -181,7 +182,7 @@ def test_find_helpers_return_none_for_missing_values():
     assert load_data.find_gre_aw(None) is None
     assert load_data.find_gre_aw("GRE V 160 only") is None
 
-
+@pytest.mark.db
 def test_load_llm_data_missing_file(tmp_path):
     missing_file = tmp_path / "missing.json"
 
@@ -189,7 +190,7 @@ def test_load_llm_data_missing_file(tmp_path):
 
     assert result == {}
 
-
+@pytest.mark.db
 def test_load_json_file(tmp_path):
     test_file = tmp_path / "sample.json"
     test_file.write_text('[{"name": "test"}]', encoding="utf-8")
@@ -198,7 +199,7 @@ def test_load_json_file(tmp_path):
 
     assert result == [{"name": "test"}]
 
-
+@pytest.mark.db
 def test_create_table_calls_execute():
     class FakeCursor:
         def __init__(self):
@@ -214,6 +215,7 @@ def test_create_table_calls_execute():
 
     assert cursor.called is True
 
+@pytest.mark.db
 def test_insert_applicants_inserts_and_skips_records():
     class FakeCursor:
         def __init__(self):
@@ -258,7 +260,7 @@ def test_insert_applicants_inserts_and_skips_records():
     assert skipped == 1
     assert cursor.insert_called is True
 
-
+@pytest.mark.db
 def test_load_data_calls_database_functions(monkeypatch, tmp_path):
     test_file = tmp_path / "applicant_data.json"
     test_file.write_text("[]", encoding="utf-8")
@@ -296,15 +298,16 @@ def test_load_data_calls_database_functions(monkeypatch, tmp_path):
     assert inserted == 0
     assert skipped == 0
 
+@pytest.mark.db
 def test_clean_date_none_and_blank():
     assert load_data.clean_date(None) is None
     assert load_data.clean_date("") is None
 
-
+@pytest.mark.db
 def test_find_value_after_label_not_found():
     assert load_data.find_value_after_label("Accepted Fall 2026", "GPA") is None
 
-
+@pytest.mark.db
 def test_load_llm_data_existing_file(tmp_path):
     llm_file = tmp_path / "llm.json"
     llm_file.write_text('[{"program": "Computer Science"}]', encoding="utf-8")
@@ -313,7 +316,7 @@ def test_load_llm_data_existing_file(tmp_path):
 
     assert result == {1: {"program": "Computer Science"}}
 
-
+@pytest.mark.db
 def test_build_applicant_record_llm_values_fallback_to_program_university():
     row = {
         "program": "Computer Science",
@@ -336,7 +339,7 @@ def test_build_applicant_record_llm_values_fallback_to_program_university():
     assert record[14] == "Computer Science"
     assert record[15] == "JHU"
 
-
+@pytest.mark.db
 def test_main_prints_counts(monkeypatch, capsys):
     def fake_load_data():
         return 2, 3

@@ -1,6 +1,9 @@
+import pytest
+
 from src import query_data
 
 
+@pytest.mark.analysis
 def test_query_data_main_prints_results(monkeypatch, capsys):
     fake_results = [
         {
