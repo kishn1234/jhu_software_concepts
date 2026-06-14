@@ -21,10 +21,25 @@ def test_create_app():
 
 
 @pytest.mark.web
-def test_analysis_page_loads(client):
+def test_analysis_page_loads(client, monkeypatch):
+    from src import flask_app
+
+    def fake_get_analysis_results():
+        return [
+            {
+                "number": "Q1",
+                "question": "How many entries are Fall 2026 entries?",
+                "rows": [(29608,)]
+            }
+        ]
+
+    monkeypatch.setattr(flask_app, "get_analysis_results", fake_get_analysis_results)
+
     response = client.get("/analysis")
 
     assert response.status_code == 200
+    assert b"Q1" in response.data
+    assert b"Answer" in response.data
 
 
 @pytest.mark.buttons
