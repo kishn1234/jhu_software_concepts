@@ -53,5 +53,5 @@ def create_app(test_config=None):
 app = create_app()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     app.run(debug=True, port=5001)

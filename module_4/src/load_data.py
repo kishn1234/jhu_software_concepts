@@ -5,8 +5,8 @@ from pathlib import Path
 
 
 DB_NAME = "gradcafe"
-DATA_FILE = Path("../module_2/applicant_data.json")
-LLM_FILE = Path("../module_2/llm_extend_applicant_data.json")
+DATA_FILE = Path("applicant_data.json")
+LLM_FILE = Path("llm_extend_applicant_data.json")
 
 
 def clean_float(value):
@@ -67,6 +67,13 @@ def clean_date(value):
         return None
 
 
+def get_field(row, *names):
+    for name in names:
+        if name in row:
+            return row.get(name)
+    return None
+
+
 def find_value_after_label(text, label):
     if text is None:
         return None
@@ -121,14 +128,18 @@ def find_gre(text):
     return None
 
 
-def load_llm_data():
+def load_json_file(file_path):
+    with open(file_path, "r", encoding="utf-8") as file:
+        return json.load(file)
+
+
+def load_llm_data(file_path=LLM_FILE):
     llm_lookup = {}
 
-    if not LLM_FILE.exists():
+    if not Path(file_path).exists():
         return llm_lookup
 
-    with open(LLM_FILE, "r", encoding="utf-8") as file:
-        data = json.load(file)
+    data = load_json_file(file_path)
 
     for index, row in enumerate(data, start=1):
         llm_lookup[index] = row
@@ -136,137 +147,155 @@ def load_llm_data():
     return llm_lookup
 
 
-conn = psycopg.connect("dbname=gradcafe")
-cur = conn.cursor()
+def create_table(cur):
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS applicants (
+        p_id INTEGER PRIMARY KEY,
+        program TEXT,
+        university TEXT,
+        comments TEXT,
+        date_added DATE,
+        url TEXT UNIQUE,
+        status TEXT,
+        term TEXT,
+        us_or_international TEXT,
+        gpa FLOAT,
+        degree TEXT,
+        gre FLOAT,
+        gre_v FLOAT,
+        gre_aw FLOAT,
+        llm_generated_program TEXT,
+        llm_generated_university TEXT
+    );
+    """)
 
-cur.execute("""
-CREATE TABLE IF NOT EXISTS applicants (
-    p_id INTEGER PRIMARY KEY,
-    program TEXT,
-    university TEXT,
-    comments TEXT,
-    date_added DATE,
-    url TEXT UNIQUE,
-    status TEXT,
-    term TEXT,
-    us_or_international TEXT,
-    gpa FLOAT,
-    degree TEXT,
-    gre FLOAT,
-    gre_v FLOAT,
-    gre_aw FLOAT,
-    llm_generated_program TEXT,
-    llm_generated_university TEXT
-);
-""")
 
-with open(DATA_FILE, "r", encoding="utf-8") as file:
-    applicant_data = json.load(file)
+def build_applicant_record(row, p_id, llm_row=None):
+    raw_detail_text = get_field(row, "raw_detail_text", "Raw Detail Text")
 
-llm_data = load_llm_data()
+    gpa = clean_gpa(get_field(row, "gpa", "GPA"))
+    if gpa is None:
+        gpa = clean_gpa(find_value_after_label(raw_detail_text, "GPA"))
 
-cur.execute("SELECT COALESCE(MAX(p_id), 0) FROM applicants;")
-max_p_id = cur.fetchone()[0]
+    gre = clean_gre(get_field(row, "gre", "GRE"))
+    if gre is None:
+        gre = clean_gre(find_gre(raw_detail_text))
 
-inserted_count = 0
-skipped_count = 0
+    gre_v = clean_gre(get_field(row, "gre_v", "GRE_V", "GRE V"))
+    if gre_v is None:
+        gre_v = clean_gre(find_gre_v(raw_detail_text))
 
-for row in applicant_data:
-    url = row.get("url")
+    gre_aw = clean_gre_aw(get_field(row, "gre_aw", "GRE_AW", "GRE AW"))
+    if gre_aw is None:
+        gre_aw = clean_gre_aw(find_gre_aw(raw_detail_text))
 
-    cur.execute("SELECT COUNT(*) FROM applicants WHERE url = %s;", (url,))
-    existing_count = cur.fetchone()[0]
+    program = get_field(row, "program", "Program")
+    university = get_field(row, "university", "University")
 
-    if existing_count > 0:
-        skipped_count = skipped_count + 1
+    if llm_row is not None:
+        llm_generated_program = get_field(llm_row, "llm_generated_program", "LLM Generated Program")
+        llm_generated_university = get_field(llm_row, "llm_generated_university", "LLM Generated University")
     else:
-        inserted_count = inserted_count + 1
-        p_id = max_p_id + inserted_count
+        llm_generated_program = program
+        llm_generated_university = university
 
-        program = row.get("program")
-        university = row.get("university")
-        comments = row.get("comments")
-        date_added = clean_date(row.get("date_added"))
-        status = row.get("status")
-        term = row.get("term")
-        us_or_international = row.get("applicant_type")
-        degree = row.get("degree")
-        raw_detail_text = row.get("raw_detail_text")
+    if llm_generated_program is None:
+        llm_generated_program = program
 
-        gpa = clean_gpa(row.get("gpa"))
-        if gpa is None:
-            gpa = clean_gpa(find_value_after_label(raw_detail_text, "GPA"))
+    if llm_generated_university is None:
+        llm_generated_university = university
 
-        gre = clean_gre(row.get("gre"))
-        if gre is None:
-            gre = clean_gre(find_gre(raw_detail_text))
+    return (
+        p_id,
+        program,
+        university,
+        get_field(row, "comments", "Comments"),
+        clean_date(get_field(row, "date_added", "Date Added")),
+        get_field(row, "url", "URL"),
+        get_field(row, "status", "Status"),
+        get_field(row, "term", "Term"),
+        get_field(row, "applicant_type", "US/International"),
+        gpa,
+        get_field(row, "degree", "Degree"),
+        gre,
+        gre_v,
+        gre_aw,
+        llm_generated_program,
+        llm_generated_university
+    )
 
-        gre_v = clean_gre(row.get("gre_v"))
-        if gre_v is None:
-            gre_v = clean_gre(find_gre_v(raw_detail_text))
 
-        gre_aw = clean_gre_aw(row.get("gre_aw"))
-        if gre_aw is None:
-            gre_aw = clean_gre_aw(find_gre_aw(raw_detail_text))
+def insert_applicants(cur, applicant_data, llm_data):
+    cur.execute("SELECT COALESCE(MAX(p_id), 0) FROM applicants;")
+    max_p_id = cur.fetchone()[0]
 
-        llm_row = llm_data.get(inserted_count)
+    inserted_count = 0
+    skipped_count = 0
 
-        if llm_row is not None:
-            llm_generated_program = llm_row.get("llm_generated_program")
-            llm_generated_university = llm_row.get("llm_generated_university")
+    for row in applicant_data:
+        url = get_field(row, "url", "URL")
+
+        cur.execute("SELECT COUNT(*) FROM applicants WHERE url = %s;", (url,))
+        existing_count = cur.fetchone()[0]
+
+        if existing_count > 0:
+            skipped_count = skipped_count + 1
         else:
-            llm_generated_program = program
-            llm_generated_university = university
+            inserted_count = inserted_count + 1
+            p_id = max_p_id + inserted_count
+            llm_row = llm_data.get(inserted_count)
 
-        if llm_generated_program is None:
-            llm_generated_program = program
+            applicant_record = build_applicant_record(row, p_id, llm_row)
 
-        if llm_generated_university is None:
-            llm_generated_university = university
+            cur.execute("""
+            INSERT INTO applicants (
+                p_id,
+                program,
+                university,
+                comments,
+                date_added,
+                url,
+                status,
+                term,
+                us_or_international,
+                gpa,
+                degree,
+                gre,
+                gre_v,
+                gre_aw,
+                llm_generated_program,
+                llm_generated_university
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+            """, applicant_record)
 
-        cur.execute("""
-        INSERT INTO applicants (
-            p_id,
-            program,
-            university,
-            comments,
-            date_added,
-            url,
-            status,
-            term,
-            us_or_international,
-            gpa,
-            degree,
-            gre,
-            gre_v,
-            gre_aw,
-            llm_generated_program,
-            llm_generated_university
-        )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-        """, (
-            p_id,
-            program,
-            university,
-            comments,
-            date_added,
-            url,
-            status,
-            term,
-            us_or_international,
-            gpa,
-            degree,
-            gre,
-            gre_v,
-            gre_aw,
-            llm_generated_program,
-            llm_generated_university
-        ))
+    return inserted_count, skipped_count
 
-conn.commit()
-cur.close()
-conn.close()
 
-print("Data loading completed.")
-print("New rows inserted:", inserted_count)
-print("Existing rows skipped:", skipped_count)
+def load_data(data_file=DATA_FILE, llm_file=LLM_FILE, db_name=DB_NAME):
+    applicant_data = load_json_file(data_file)
+    llm_data = load_llm_data(llm_file)
+
+    conn = psycopg.connect(f"dbname={db_name}")
+    cur = conn.cursor()
+
+    create_table(cur)
+    inserted_count, skipped_count = insert_applicants(cur, applicant_data, llm_data)
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return inserted_count, skipped_count
+
+
+def main():
+    inserted_count, skipped_count = load_data()
+
+    print("Data loading completed.")
+    print("New rows inserted:", inserted_count)
+    print("Existing rows skipped:", skipped_count)
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main()
