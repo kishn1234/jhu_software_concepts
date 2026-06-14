@@ -1,2 +1,6 @@
 psycopg
 flask
+pytest
+pytest-cov
+sphinx
+sphinx-rtd-theme

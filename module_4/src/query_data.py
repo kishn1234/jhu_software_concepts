@@ -80,19 +80,45 @@ def get_queries():
         """),
 
         ("Q9", "Does the answer for Q8 change when using LLM generated fields?", """
-            SELECT COUNT(*)
-            FROM applicants
-            WHERE EXTRACT(YEAR FROM date_added) = 2026
-            AND status LIKE 'Accepted%'
-            AND degree = 'PhD'
-            AND llm_generated_program ILIKE '%Computer Science%'
-            AND (
-                llm_generated_university ILIKE '%Georgetown%'
-                OR llm_generated_university ILIKE '%MIT%'
-                OR llm_generated_university ILIKE '%Stanford%'
-                OR llm_generated_university ILIKE '%Carnegie Mellon%'
-            );
-        """),
+    SELECT
+        standard_count,
+        llm_count,
+        CASE
+            WHEN standard_count = llm_count THEN 'No, the answer does not change.'
+            ELSE 'Yes, the answer changes.'
+        END AS comparison
+    FROM (
+        SELECT
+            (
+                SELECT COUNT(*)
+                FROM applicants
+                WHERE EXTRACT(YEAR FROM date_added) = 2026
+                AND status LIKE 'Accepted%'
+                AND degree = 'PhD'
+                AND program ILIKE '%Computer Science%'
+                AND (
+                    university ILIKE '%Georgetown%'
+                    OR university ILIKE '%MIT%'
+                    OR university ILIKE '%Stanford%'
+                    OR university ILIKE '%Carnegie Mellon%'
+                )
+            ) AS standard_count,
+            (
+                SELECT COUNT(*)
+                FROM applicants
+                WHERE EXTRACT(YEAR FROM date_added) = 2026
+                AND status LIKE 'Accepted%'
+                AND degree = 'PhD'
+                AND llm_generated_program ILIKE '%Computer Science%'
+                AND (
+                    llm_generated_university ILIKE '%Georgetown%'
+                    OR llm_generated_university ILIKE '%MIT%'
+                    OR llm_generated_university ILIKE '%Stanford%'
+                    OR llm_generated_university ILIKE '%Carnegie Mellon%'
+                )
+            ) AS llm_count
+    ) AS counts;
+"""),
 
         ("Q10", "Additional: What is the acceptance rate by degree type?", """
             SELECT
