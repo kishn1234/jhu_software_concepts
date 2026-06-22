@@ -369,3 +369,54 @@ def test_main_prints_counts(monkeypatch, capsys):
     assert "Data loading completed." in captured.out
     assert "New rows inserted: 2" in captured.out
     assert "Existing rows skipped: 3" in captured.out
+
+@pytest.mark.db
+def test_load_data_uses_database_url(monkeypatch, tmp_path):
+    test_file = tmp_path / "applicant_data.json"
+    test_file.write_text("[]", encoding="utf-8")
+
+    llm_file = tmp_path / "llm.json"
+    llm_file.write_text("[]", encoding="utf-8")
+
+    class FakeCursor:
+        def execute(self, sql, params=None):
+            pass
+
+        def fetchone(self):
+            return (0,)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+    class FakeConnection:
+        def cursor(self):
+            return FakeCursor()
+
+        def commit(self):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+    captured = {}
+
+    def fake_connect(*args, **kwargs):
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+        return FakeConnection()
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@localhost/gradcafe")
+    monkeypatch.setattr(load_data.psycopg, "connect", fake_connect)
+
+    inserted, skipped = load_data.load_data(test_file, llm_file)
+
+    assert inserted == 0
+    assert skipped == 0
+    assert captured["args"] == ("postgresql://user:pass@localhost/gradcafe",)
+    assert captured["kwargs"] == {}

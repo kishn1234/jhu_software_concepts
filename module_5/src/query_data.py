@@ -1,8 +1,9 @@
 """Database query helpers for the Grad Cafe analytics dashboard."""
 
+import os
+
 from psycopg import sql
 import psycopg
-
 
 DEFAULT_QUERY_LIMIT = 100
 MIN_QUERY_LIMIT = 1
@@ -45,9 +46,17 @@ def run_safe_select_query(cur, table_name, column_name, limit=DEFAULT_QUERY_LIMI
 
 def get_connection():
     """Create a PostgreSQL connection for analytics queries."""
+    database_url = os.getenv("DATABASE_URL")
+
+    if database_url:
+        return psycopg.connect(database_url)
+
     return psycopg.connect(
-        dbname="gradcafe",
-        user="kishore.narayanan"
+        dbname=os.getenv("DB_NAME", "gradcafe"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        host=os.getenv("DB_HOST", "localhost"),
+        port=os.getenv("DB_PORT", "5432"),
     )
 
 

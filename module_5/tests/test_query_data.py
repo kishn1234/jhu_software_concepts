@@ -133,3 +133,19 @@ def test_run_safe_select_query_uses_parameterized_execution():
     assert rows == [("Johns Hopkins University",)]
     assert cursor.executed_statement is not None
     assert cursor.executed_params == (5,)
+
+@pytest.mark.analysis
+def test_get_connection_uses_database_url(monkeypatch):
+    captured = {}
+
+    def fake_connect(connection_string):
+        captured["connection_string"] = connection_string
+        return "fake connection"
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@localhost/db")
+    monkeypatch.setattr(query_data.psycopg, "connect", fake_connect)
+
+    result = query_data.get_connection()
+
+    assert result == "fake connection"
+    assert captured["connection_string"] == "postgresql://user:pass@localhost/db"

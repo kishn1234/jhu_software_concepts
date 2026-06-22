@@ -1,5 +1,7 @@
 """ETL helpers for loading Grad Cafe applicant records into PostgreSQL."""
 
+import os
+
 import json
 from datetime import datetime
 from pathlib import Path
@@ -7,7 +9,7 @@ from pathlib import Path
 import psycopg
 
 
-DB_NAME = "gradcafe"
+DEFAULT_DB_NAME = "gradcafe"
 DATA_FILE = Path("applicant_data.json")
 LLM_FILE = Path("llm_extend_applicant_data.json")
 
@@ -316,13 +318,34 @@ def insert_applicants(cur, applicant_data, llm_data):
 def load_data(
     data_file=DATA_FILE,
     llm_file=LLM_FILE,
-    db_name=DB_NAME,
+    db_name=None,
 ):
     """Load applicant and LLM data into PostgreSQL."""
     applicant_data = load_json_file(data_file)
     llm_data = load_llm_data(llm_file)
 
-    with psycopg.connect(dbname=db_name) as conn:
+    database_url = os.getenv("DATABASE_URL")
+
+    if database_url:
+        connection_args = (database_url,)
+        connection_kwargs = {}
+    else:
+        connection_args = ()
+        connection_kwargs = {
+            "dbname": db_name or os.getenv(
+                "DB_NAME",
+                DEFAULT_DB_NAME,
+            ),
+            "user": os.getenv("DB_USER"),
+            "password": os.getenv("DB_PASSWORD"),
+            "host": os.getenv("DB_HOST", "localhost"),
+            "port": os.getenv("DB_PORT", "5432"),
+        }
+
+    with psycopg.connect(
+        *connection_args,
+        **connection_kwargs,
+    ) as conn:
         with conn.cursor() as cur:
             create_table(cur)
             inserted_count, skipped_count = insert_applicants(
