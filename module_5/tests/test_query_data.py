@@ -73,3 +73,63 @@ def test_query_data_main_prints_results(monkeypatch, capsys):
 
     assert "Q1 Test question?" in captured.out
     assert "(123,)" in captured.out
+
+@pytest.mark.db
+def test_clamp_query_limit_handles_valid_and_invalid_values():
+    assert query_data.clamp_query_limit(25) == 25
+    assert query_data.clamp_query_limit(0) == query_data.MIN_QUERY_LIMIT
+    assert query_data.clamp_query_limit(500) == query_data.MAX_QUERY_LIMIT
+    assert query_data.clamp_query_limit("bad") == query_data.DEFAULT_QUERY_LIMIT
+    assert query_data.clamp_query_limit(None) == query_data.DEFAULT_QUERY_LIMIT
+
+
+@pytest.mark.db
+def test_build_safe_select_query_uses_identifier_and_limit_params():
+    statement, params = query_data.build_safe_select_query(
+        "applicants",
+        "university",
+        10,
+    )
+
+    assert params == (10,)
+    assert statement is not None
+
+
+@pytest.mark.db
+def test_build_safe_select_query_clamps_malicious_limit():
+    statement, params = query_data.build_safe_select_query(
+        "applicants",
+        "university",
+        "1; DROP TABLE applicants;",
+    )
+
+    assert statement is not None
+    assert params == (query_data.DEFAULT_QUERY_LIMIT,)
+
+
+@pytest.mark.db
+def test_run_safe_select_query_uses_parameterized_execution():
+    class FakeCursor:
+        def __init__(self):
+            self.executed_statement = None
+            self.executed_params = None
+
+        def execute(self, statement, params=None):
+            self.executed_statement = statement
+            self.executed_params = params
+
+        def fetchall(self):
+            return [("Johns Hopkins University",)]
+
+    cursor = FakeCursor()
+
+    rows = query_data.run_safe_select_query(
+        cursor,
+        "applicants",
+        "university",
+        5,
+    )
+
+    assert rows == [("Johns Hopkins University",)]
+    assert cursor.executed_statement is not None
+    assert cursor.executed_params == (5,)

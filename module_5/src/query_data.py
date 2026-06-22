@@ -1,6 +1,46 @@
 """Database query helpers for the Grad Cafe analytics dashboard."""
 
+from psycopg import sql
 import psycopg
+
+
+DEFAULT_QUERY_LIMIT = 100
+MIN_QUERY_LIMIT = 1
+MAX_QUERY_LIMIT = 100
+
+def clamp_query_limit(requested_limit):
+    """Clamp query limits to the approved safe range."""
+    try:
+        limit = int(requested_limit)
+    except (TypeError, ValueError):
+        return DEFAULT_QUERY_LIMIT
+
+    return max(MIN_QUERY_LIMIT, min(limit, MAX_QUERY_LIMIT))
+
+
+def build_safe_select_query(table_name, column_name, limit=DEFAULT_QUERY_LIMIT):
+    """Build a safe dynamic SELECT query using psycopg SQL composition."""
+    safe_limit = clamp_query_limit(limit)
+
+    statement = sql.SQL(
+        "SELECT {column} FROM {table} LIMIT %s;"
+    ).format(
+        column=sql.Identifier(column_name),
+        table=sql.Identifier(table_name),
+    )
+
+    return statement, (safe_limit,)
+
+
+def run_safe_select_query(cur, table_name, column_name, limit=DEFAULT_QUERY_LIMIT):
+    """Run a safe dynamic SELECT query with validated LIMIT control."""
+    statement, params = build_safe_select_query(
+        table_name,
+        column_name,
+        limit,
+    )
+    cur.execute(statement, params)
+    return cur.fetchall()
 
 
 def get_connection():
@@ -170,14 +210,14 @@ def get_analysis_results():
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            for number, question, sql in get_queries():
-                cur.execute(sql)
+            for number, question, query_sql in get_queries():
+                cur.execute(query_sql)
                 rows = cur.fetchall()
 
                 results.append({
                     "number": number,
                     "question": question,
-                    "sql": sql,
+                    "sql": query_sql,
                     "rows": rows
                 })
 
