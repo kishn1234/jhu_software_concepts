@@ -1,53 +1,82 @@
-from flask import Flask, render_template, redirect, url_for, request
-from src.query_data import get_analysis_results
+"""Flask routes for the Grad Cafe analytics web application."""
+
 import subprocess
 
+from flask import Flask, redirect, render_template, request, url_for
 
-data_refresh_running = False
+from src.query_data import get_analysis_results
+
+
+DATA_REFRESH_STATE = {"running": False}
 
 
 def create_app(test_config=None):
-    app = Flask(__name__)
+    """Create and configure the Flask application."""
+    flask_app = Flask(__name__)
 
     if test_config is not None:
-        app.config.update(test_config)
+        flask_app.config.update(test_config)
 
-    @app.route("/")
-    @app.route("/analysis")
+    @flask_app.route("/")
+    @flask_app.route("/analysis")
     def index():
+        """Render the analysis dashboard."""
         results = get_analysis_results()
         message = request.args.get("message")
-        return render_template("index.html", results=results, message=message)
+        return render_template(
+            "index.html",
+            results=results,
+            message=message
+        )
 
-    @app.route("/pull-data", methods=["POST"])
+    @flask_app.route("/pull-data", methods=["POST"])
     def pull_data():
-        global data_refresh_running
+        """Run the data loading process and return to the analysis page."""
+        if DATA_REFRESH_STATE["running"]:
+            message = (
+                "A data pull is already running. "
+                "Please wait before starting another request."
+            )
+            return redirect(url_for("index", message=message))
 
-        if data_refresh_running:
-            return redirect(url_for("index", message="A data pull is already running. Please wait before starting another request."))
-
-        data_refresh_running = True
+        DATA_REFRESH_STATE["running"] = True
 
         try:
             subprocess.run(["python3", "load_data.py"], check=True)
-            message = "Pull Data completed. Applicant records from the Module 2 applicant_data.json file were loaded into PostgreSQL. Existing records were preserved and duplicate records were skipped."
+            message = (
+                "Pull Data completed. Applicant records from the Module 2 "
+                "applicant_data.json file were loaded into PostgreSQL. "
+                "Existing records were preserved and duplicate records "
+                "were skipped."
+            )
         except subprocess.CalledProcessError:
-            message = "Pull Data could not complete. Please check the terminal for error details."
+            message = (
+                "Pull Data could not complete. "
+                "Please check the terminal for error details."
+            )
         finally:
-            data_refresh_running = False
+            DATA_REFRESH_STATE["running"] = False
 
         return redirect(url_for("index", message=message))
 
-    @app.route("/update-analysis", methods=["POST"])
+    @flask_app.route("/update-analysis", methods=["POST"])
     def update_analysis():
-        global data_refresh_running
+        """Refresh the analysis page after the database has been updated."""
+        if DATA_REFRESH_STATE["running"]:
+            message = (
+                "Data is still being pulled. "
+                "Please wait before updating the analysis."
+            )
+            return redirect(url_for("index", message=message))
 
-        if data_refresh_running:
-            return redirect(url_for("index", message="Data is still being pulled. Please wait before updating the analysis."))
+        message = (
+            "Update Analysis completed. "
+            "The page now shows the latest PostgreSQL query results."
+        )
 
-        return redirect(url_for("index", message="Update Analysis completed. The page now shows the latest PostgreSQL query results."))
+        return redirect(url_for("index", message=message))
 
-    return app
+    return flask_app
 
 
 app = create_app()

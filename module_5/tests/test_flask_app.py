@@ -84,7 +84,11 @@ def test_pull_data_failure(client, monkeypatch):
 def test_pull_data_already_running(client, monkeypatch):
     from src import flask_app
 
-    monkeypatch.setattr(flask_app, "data_refresh_running", True)
+    monkeypatch.setitem(
+    flask_app.DATA_REFRESH_STATE,
+    "running",
+    True
+)
 
     response = client.post("/pull-data")
 
@@ -95,7 +99,11 @@ def test_pull_data_already_running(client, monkeypatch):
 def test_update_analysis_during_data_refresh(client, monkeypatch):
     from src import flask_app
 
-    monkeypatch.setattr(flask_app, "data_refresh_running", True)
+    monkeypatch.setitem(
+    flask_app.DATA_REFRESH_STATE,
+    "running",
+    True
+)
 
     response = client.post("/update-analysis")
 
