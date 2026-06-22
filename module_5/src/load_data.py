@@ -1,7 +1,10 @@
+"""ETL helpers for loading Grad Cafe applicant records into PostgreSQL."""
+
 import json
-import psycopg
 from datetime import datetime
 from pathlib import Path
+
+import psycopg
 
 
 DB_NAME = "gradcafe"
@@ -10,6 +13,7 @@ LLM_FILE = Path("llm_extend_applicant_data.json")
 
 
 def clean_float(value):
+    """Convert a value to float, returning None for invalid input."""
     if value is None:
         return None
 
@@ -25,6 +29,7 @@ def clean_float(value):
 
 
 def clean_gpa(value):
+    """Return a GPA only when it falls within the valid GPA range."""
     number = clean_float(value)
 
     if number is not None and 0 <= number <= 4.3:
@@ -34,6 +39,7 @@ def clean_gpa(value):
 
 
 def clean_gre(value):
+    """Return a GRE score only when it falls within the valid GRE range."""
     number = clean_float(value)
 
     if number is not None and 130 <= number <= 170:
@@ -43,6 +49,7 @@ def clean_gre(value):
 
 
 def clean_gre_aw(value):
+    """Return a GRE analytical writing score only when it is valid."""
     number = clean_float(value)
 
     if number is not None and 0 <= number <= 6:
@@ -52,6 +59,7 @@ def clean_gre_aw(value):
 
 
 def clean_date(value):
+    """Convert Grad Cafe date text into YYYY-MM-DD format."""
     if value is None:
         return None
 
@@ -68,6 +76,7 @@ def clean_date(value):
 
 
 def get_field(row, *names):
+    """Return the first matching field value from a row dictionary."""
     for name in names:
         if name in row:
             return row.get(name)
@@ -75,19 +84,21 @@ def get_field(row, *names):
 
 
 def find_value_after_label(text, label):
+    """Find the word immediately after a label in raw detail text."""
     if text is None:
         return None
 
     words = text.split()
 
-    for i in range(len(words)):
-        if words[i] == label and i + 1 < len(words):
-            return words[i + 1]
+    for index, word in enumerate(words):
+        if word == label and index + 1 < len(words):
+            return words[index + 1]
 
     return None
 
 
 def find_gre_v(text):
+    """Find the GRE verbal score from raw detail text."""
     if text is None:
         return None
 
@@ -101,6 +112,7 @@ def find_gre_v(text):
 
 
 def find_gre_aw(text):
+    """Find the GRE analytical writing score from raw detail text."""
     if text is None:
         return None
 
@@ -114,26 +126,29 @@ def find_gre_aw(text):
 
 
 def find_gre(text):
+    """Find the general GRE score from raw detail text."""
     if text is None:
         return None
 
     words = text.split()
 
-    for i in range(len(words)):
-        if words[i] == "GRE":
-            if i + 1 < len(words):
-                if words[i + 1] != "V" and words[i + 1] != "AW":
-                    return words[i + 1]
+    for index, word in enumerate(words):
+        if word == "GRE" and index + 1 < len(words):
+            next_word = words[index + 1]
+            if next_word not in ("V", "AW"):
+                return next_word
 
     return None
 
 
 def load_json_file(file_path):
+    """Load and return JSON data from a file path."""
     with open(file_path, "r", encoding="utf-8") as file:
         return json.load(file)
 
 
 def load_llm_data(file_path=LLM_FILE):
+    """Load optional LLM-enriched applicant data keyed by row number."""
     llm_lookup = {}
 
     if not Path(file_path).exists():
@@ -148,6 +163,7 @@ def load_llm_data(file_path=LLM_FILE):
 
 
 def create_table(cur):
+    """Create the applicants table when it does not already exist."""
     cur.execute("""
     CREATE TABLE IF NOT EXISTS applicants (
         p_id INTEGER PRIMARY KEY,
@@ -171,6 +187,7 @@ def create_table(cur):
 
 
 def build_applicant_record(row, p_id, llm_row=None):
+    """Build a normalized applicant tuple for database insertion."""
     raw_detail_text = get_field(row, "raw_detail_text", "Raw Detail Text")
 
     gpa = clean_gpa(get_field(row, "gpa", "GPA"))
@@ -193,8 +210,16 @@ def build_applicant_record(row, p_id, llm_row=None):
     university = get_field(row, "university", "University")
 
     if llm_row is not None:
-        llm_generated_program = get_field(llm_row, "llm_generated_program", "LLM Generated Program")
-        llm_generated_university = get_field(llm_row, "llm_generated_university", "LLM Generated University")
+        llm_generated_program = get_field(
+            llm_row,
+            "llm_generated_program",
+            "LLM Generated Program",
+        )
+        llm_generated_university = get_field(
+            llm_row,
+            "llm_generated_university",
+            "LLM Generated University",
+        )
     else:
         llm_generated_program = program
         llm_generated_university = university
@@ -221,11 +246,12 @@ def build_applicant_record(row, p_id, llm_row=None):
         gre_v,
         gre_aw,
         llm_generated_program,
-        llm_generated_university
+        llm_generated_university,
     )
 
 
 def insert_applicants(cur, applicant_data, llm_data):
+    """Insert new applicant rows and skip duplicate URLs."""
     cur.execute("SELECT COALESCE(MAX(p_id), 0) FROM applicants;")
     max_p_id = cur.fetchone()[0]
 
@@ -235,61 +261,83 @@ def insert_applicants(cur, applicant_data, llm_data):
     for row in applicant_data:
         url = get_field(row, "url", "URL")
 
-        cur.execute("SELECT COUNT(*) FROM applicants WHERE url = %s;", (url,))
+        cur.execute(
+            "SELECT COUNT(*) FROM applicants WHERE url = %s;",
+            (url,),
+        )
         existing_count = cur.fetchone()[0]
 
         if existing_count > 0:
-            skipped_count = skipped_count + 1
+            skipped_count += 1
         else:
-            inserted_count = inserted_count + 1
+            inserted_count += 1
             p_id = max_p_id + inserted_count
             llm_row = llm_data.get(inserted_count)
 
-            applicant_record = build_applicant_record(row, p_id, llm_row)
-
-            cur.execute("""
-            INSERT INTO applicants (
+            applicant_record = build_applicant_record(
+                row,
                 p_id,
-                program,
-                university,
-                comments,
-                date_added,
-                url,
-                status,
-                term,
-                us_or_international,
-                gpa,
-                degree,
-                gre,
-                gre_v,
-                gre_aw,
-                llm_generated_program,
-                llm_generated_university
+                llm_row,
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-            """, applicant_record)
+
+            cur.execute(
+                """
+                INSERT INTO applicants (
+                    p_id,
+                    program,
+                    university,
+                    comments,
+                    date_added,
+                    url,
+                    status,
+                    term,
+                    us_or_international,
+                    gpa,
+                    degree,
+                    gre,
+                    gre_v,
+                    gre_aw,
+                    llm_generated_program,
+                    llm_generated_university
+                )
+                VALUES (
+                    %s, %s, %s, %s,
+                    %s, %s, %s, %s,
+                    %s, %s, %s, %s,
+                    %s, %s, %s, %s
+                );
+                """,
+                applicant_record,
+            )
 
     return inserted_count, skipped_count
 
 
-def load_data(data_file=DATA_FILE, llm_file=LLM_FILE, db_name=DB_NAME):
+def load_data(
+    data_file=DATA_FILE,
+    llm_file=LLM_FILE,
+    db_name=DB_NAME,
+):
+    """Load applicant and LLM data into PostgreSQL."""
     applicant_data = load_json_file(data_file)
     llm_data = load_llm_data(llm_file)
 
-    conn = psycopg.connect(f"dbname={db_name}")
-    cur = conn.cursor()
+    with psycopg.connect(dbname=db_name) as conn:
+        with conn.cursor() as cur:
+            create_table(cur)
+            inserted_count, skipped_count = insert_applicants(
+                cur,
+                applicant_data,
+                llm_data,
+            )
 
-    create_table(cur)
-    inserted_count, skipped_count = insert_applicants(cur, applicant_data, llm_data)
-
-    conn.commit()
-    cur.close()
-    conn.close()
+        conn.commit()
 
     return inserted_count, skipped_count
 
 
 def main():
+    """Run the data load process and print summary counts."""
     inserted_count, skipped_count = load_data()
 
     print("Data loading completed.")

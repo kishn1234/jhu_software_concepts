@@ -278,6 +278,12 @@ def test_load_data_calls_database_functions(monkeypatch, tmp_path):
         def close(self):
             pass
 
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
     class FakeConnection:
         def cursor(self):
             return FakeCursor()
@@ -288,12 +294,22 @@ def test_load_data_calls_database_functions(monkeypatch, tmp_path):
         def close(self):
             pass
 
-    def fake_connect(connection_string):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+    def fake_connect(*args, **kwargs):
         return FakeConnection()
 
     monkeypatch.setattr(load_data.psycopg, "connect", fake_connect)
 
-    inserted, skipped = load_data.load_data(test_file, llm_file, "fake_db")
+    inserted, skipped = load_data.load_data(
+        test_file,
+        llm_file,
+        "fake_db",
+    )
 
     assert inserted == 0
     assert skipped == 0

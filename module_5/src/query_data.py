@@ -1,7 +1,10 @@
+"""Database query helpers for the Grad Cafe analytics dashboard."""
+
 import psycopg
 
 
 def get_connection():
+    """Create a PostgreSQL connection for analytics queries."""
     return psycopg.connect(
         dbname="gradcafe",
         user="kishore.narayanan"
@@ -9,6 +12,7 @@ def get_connection():
 
 
 def get_queries():
+    """Return the dashboard questions and SQL statements."""
     return [
         ("Q1", "How many entries are Fall 2026 entries?", """
             SELECT COUNT(*)
@@ -56,15 +60,28 @@ def get_queries():
             AND status LIKE 'Accepted%';
         """),
 
-        ("Q7", "How many entries are from applicants who applied to JHU for a masters degree in Computer Science?", """
+        (
+            "Q7",
+            (
+                "How many entries are from applicants who applied to JHU "
+                "for a masters degree in Computer Science?"
+            ),
+            """
             SELECT COUNT(*)
             FROM applicants
             WHERE university ILIKE '%Johns Hopkins%'
             AND program ILIKE '%Computer Science%'
             AND degree = 'Masters';
-        """),
+            """
+        ),
 
-        ("Q8", "How many 2026 PhD Computer Science acceptances are from Georgetown, MIT, Stanford, or Carnegie Mellon?", """
+        (
+            "Q8",
+            (
+                "How many 2026 PhD Computer Science acceptances are from "
+                "Georgetown, MIT, Stanford, or Carnegie Mellon?"
+            ),
+            """
             SELECT COUNT(*)
             FROM applicants
             WHERE EXTRACT(YEAR FROM date_added) = 2026
@@ -77,48 +94,49 @@ def get_queries():
                 OR university ILIKE '%Stanford%'
                 OR university ILIKE '%Carnegie Mellon%'
             );
-        """),
+            """
+        ),
 
         ("Q9", "Does the answer for Q8 change when using LLM generated fields?", """
-    SELECT
-        standard_count,
-        llm_count,
-        CASE
-            WHEN standard_count = llm_count THEN 'No, the answer does not change.'
-            ELSE 'Yes, the answer changes.'
-        END AS comparison
-    FROM (
-        SELECT
-            (
-                SELECT COUNT(*)
-                FROM applicants
-                WHERE EXTRACT(YEAR FROM date_added) = 2026
-                AND status LIKE 'Accepted%'
-                AND degree = 'PhD'
-                AND program ILIKE '%Computer Science%'
-                AND (
-                    university ILIKE '%Georgetown%'
-                    OR university ILIKE '%MIT%'
-                    OR university ILIKE '%Stanford%'
-                    OR university ILIKE '%Carnegie Mellon%'
-                )
-            ) AS standard_count,
-            (
-                SELECT COUNT(*)
-                FROM applicants
-                WHERE EXTRACT(YEAR FROM date_added) = 2026
-                AND status LIKE 'Accepted%'
-                AND degree = 'PhD'
-                AND llm_generated_program ILIKE '%Computer Science%'
-                AND (
-                    llm_generated_university ILIKE '%Georgetown%'
-                    OR llm_generated_university ILIKE '%MIT%'
-                    OR llm_generated_university ILIKE '%Stanford%'
-                    OR llm_generated_university ILIKE '%Carnegie Mellon%'
-                )
-            ) AS llm_count
-    ) AS counts;
-"""),
+            SELECT
+                standard_count,
+                llm_count,
+                CASE
+                    WHEN standard_count = llm_count THEN 'No, the answer does not change.'
+                    ELSE 'Yes, the answer changes.'
+                END AS comparison
+            FROM (
+                SELECT
+                    (
+                        SELECT COUNT(*)
+                        FROM applicants
+                        WHERE EXTRACT(YEAR FROM date_added) = 2026
+                        AND status LIKE 'Accepted%'
+                        AND degree = 'PhD'
+                        AND program ILIKE '%Computer Science%'
+                        AND (
+                            university ILIKE '%Georgetown%'
+                            OR university ILIKE '%MIT%'
+                            OR university ILIKE '%Stanford%'
+                            OR university ILIKE '%Carnegie Mellon%'
+                        )
+                    ) AS standard_count,
+                    (
+                        SELECT COUNT(*)
+                        FROM applicants
+                        WHERE EXTRACT(YEAR FROM date_added) = 2026
+                        AND status LIKE 'Accepted%'
+                        AND degree = 'PhD'
+                        AND llm_generated_program ILIKE '%Computer Science%'
+                        AND (
+                            llm_generated_university ILIKE '%Georgetown%'
+                            OR llm_generated_university ILIKE '%MIT%'
+                            OR llm_generated_university ILIKE '%Stanford%'
+                            OR llm_generated_university ILIKE '%Carnegie Mellon%'
+                        )
+                    ) AS llm_count
+            ) AS counts;
+        """),
 
         ("Q10", "Additional: What is the acceptance rate by degree type?", """
             SELECT
@@ -147,6 +165,7 @@ def get_queries():
 
 
 def get_analysis_results():
+    """Run all dashboard queries and return formatted result dictionaries."""
     results = []
 
     with get_connection() as conn:
@@ -166,6 +185,7 @@ def get_analysis_results():
 
 
 def main():
+    """Print all dashboard query results to the terminal."""
     results = get_analysis_results()
 
     for result in results:
