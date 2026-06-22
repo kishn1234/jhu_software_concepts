@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Grad Cafe Data Analysis</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Grad Cafe Data Analysis</h1>
+        <p>This page displays analysis results from the PostgreSQL applicants database.</p>
+
+        <div class="button-area">
+            <form action="/pull-data" method="post">
+                <button type="submit">Pull Data</button>
+            </form>
+
+            <p class="button-note">
+                Pull Data loads applicant records from the Module 2 data file into PostgreSQL. Existing records are preserved and duplicate records are skipped.
+                This can take several minutes.
+            </p>
+
+            <form action="/update-analysis" method="post">
+                <button type="submit">Update Analysis</button>
+            </form>
+
+            <p class="button-note">
+                Update Analysis refreshes this page with the most current query results from the PostgreSQL database.
+            </p>
+        </div>
+
+        {% if message %}
+            <div class="message">
+                {{ message }}
+            </div>
+        {% endif %}
+
+        {% for result in results %}
+            <div class="card">
+                <h2>{{ result.number }}</h2>
+                <h3>{{ result.question }}</h3>
+
+                {% for row in result.rows %}
+                    <p class="answer">
+                        Answer:
+                        {% for item in row %}
+                            {{ item }}{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    </p>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+</body>
+</html>
