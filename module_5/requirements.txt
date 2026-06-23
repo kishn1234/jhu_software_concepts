@@ -4,3 +4,6 @@ pytest
 pytest-cov
 sphinx
 sphinx-rtd-theme
+pylint
+pydeps
+setuptools
