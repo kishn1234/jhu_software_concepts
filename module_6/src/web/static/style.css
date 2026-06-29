@@ -1,0 +1,40 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f6f8;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    width: 80%;
+    margin: 30px auto;
+}
+
+h1 {
+    color: #1f2933;
+    border-bottom: 2px solid #cccccc;
+    padding-bottom: 10px;
+}
+
+.card {
+    background-color: white;
+    margin-bottom: 18px;
+    padding: 18px;
+    border: 1px solid #dddddd;
+    border-radius: 6px;
+}
+
+.card h2 {
+    margin: 0;
+    color: #2b5c8a;
+}
+
+.card h3 {
+    margin-top: 8px;
+    color: #333333;
+}
+
+.answer {
+    font-weight: bold;
+    color: #111111;
+}
