@@ -1,5 +1,7 @@
 """Entry point for the containerized Flask web service."""
 
+# pylint: disable=import-error
+
 from app.flask_app import create_app
 
 

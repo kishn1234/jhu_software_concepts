@@ -50,7 +50,7 @@ def create_app(test_config=None):
                 "Pull Data request was queued successfully. "
                 "The worker service will load applicant records into PostgreSQL."
             )
-        except Exception:
+        except RuntimeError:
             message = (
                 "Pull Data could not be queued. "
                 "Please check RabbitMQ and the worker service."
@@ -76,7 +76,7 @@ def create_app(test_config=None):
                 "Update Analysis request was queued successfully. "
                 "The worker service will recompute analytics in PostgreSQL."
             )
-        except Exception:
+        except RuntimeError:
             message = (
                 "Update Analysis could not be queued. "
                 "Please check RabbitMQ and the worker service."

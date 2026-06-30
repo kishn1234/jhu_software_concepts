@@ -1,5 +1,7 @@
 """RabbitMQ consumer for Module 6 background worker tasks."""
 
+# pylint: disable=import-error
+
 from __future__ import annotations
 
 import json
@@ -79,6 +81,7 @@ def _handle_task(message: dict[str, Any]) -> None:
     raise ValueError(f"Unsupported task kind: {task_kind}")
 
 
+# pylint: disable=broad-exception-caught
 def _on_message(channel, method, properties, body) -> None:
     """Process one RabbitMQ message and acknowledge it after success."""
     del properties
@@ -99,7 +102,7 @@ def main() -> None:
     """Start the RabbitMQ worker loop."""
     while True:
         try:
-            conn, channel = _open_channel()
+            _conn, channel = _open_channel()
             print("Worker is waiting for RabbitMQ tasks.")
             channel.basic_consume(
                 queue=QUEUE,
