@@ -2,7 +2,7 @@
 
 # pylint: disable=import-error
 
-from app.flask_app import create_app
+from src.web.app.flask_app import create_app
 
 
 application = create_app()

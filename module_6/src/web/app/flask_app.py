@@ -12,8 +12,8 @@ DATA_REFRESH_STATE = {"running": False}
 def create_app(test_config=None):
     """Create and configure the Flask application."""
     flask_app = Flask(
-    __name__,
-    template_folder="../templates",
+        __name__,
+        template_folder="../templates",
     static_folder="../static"
 )
 

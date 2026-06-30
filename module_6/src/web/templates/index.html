@@ -42,9 +42,17 @@
                 {% for row in result.rows %}
                     <p class="answer">
                         Answer:
-                        {% for item in row %}
-                            {{ item }}{% if not loop.last %}, {% endif %}
-                        {% endfor %}
+                        {% if result.number in ["Q2", "Q5"] %}
+                            {{ "%.2f"|format(row[0]) }}%
+                        {% elif result.number == "Q10" %}
+                            {{ row[0] }} – {{ "{:,}".format(row[1]) }} total applications,
+                            {{ "{:,}".format(row[2]) }} acceptances,
+                            {{ "%.2f"|format(row[3]) }}% acceptance rate
+                        {% else %}
+                            {% for item in row %}
+                                {{ item }}{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                        {% endif %}
                     </p>
                 {% endfor %}
             </div>

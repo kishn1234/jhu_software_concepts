@@ -25,7 +25,8 @@ services:
 
   web:
     build:
-      context: ./src/web
+      context: .
+      dockerfile: ./src/web/Dockerfile
     ports:
       - "8080:8080"
     environment:
