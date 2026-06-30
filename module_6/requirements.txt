@@ -6,4 +6,5 @@ sphinx
 sphinx-rtd-theme
 pylint
 pydeps
-setuptoolspika==1.3.2
+setuptools
+pika==1.3.2
