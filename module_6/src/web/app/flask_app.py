@@ -1,10 +1,9 @@
 """Flask routes for the Grad Cafe analytics web application."""
 
-import subprocess
-
 from flask import Flask, redirect, render_template, request, url_for
 
-from src.worker.etl.query_data import get_analysis_results
+from src.web.app.query_data import get_analysis_results
+from src.web.publisher import publish_task
 
 
 DATA_REFRESH_STATE = {"running": False}
@@ -46,17 +45,15 @@ def create_app(test_config=None):
         DATA_REFRESH_STATE["running"] = True
 
         try:
-            subprocess.run(["python3", "load_data.py"], check=True)
+            publish_task("scrape_new_data", payload={})
             message = (
-                "Pull Data completed. Applicant records from the Module 2 "
-                "applicant_data.json file were loaded into PostgreSQL. "
-                "Existing records were preserved and duplicate records "
-                "were skipped."
+                "Pull Data request was queued successfully. "
+                "The worker service will load applicant records into PostgreSQL."
             )
-        except subprocess.CalledProcessError:
+        except Exception:
             message = (
-                "Pull Data could not complete. "
-                "Please check the terminal for error details."
+                "Pull Data could not be queued. "
+                "Please check RabbitMQ and the worker service."
             )
         finally:
             DATA_REFRESH_STATE["running"] = False
@@ -73,10 +70,17 @@ def create_app(test_config=None):
             )
             return redirect(url_for("index", message=message))
 
-        message = (
-            "Update Analysis completed. "
-            "The page now shows the latest PostgreSQL query results."
-        )
+        try:
+            publish_task("recompute_analytics", payload={})
+            message = (
+                "Update Analysis request was queued successfully. "
+                "The worker service will recompute analytics in PostgreSQL."
+            )
+        except Exception:
+            message = (
+                "Update Analysis could not be queued. "
+                "Please check RabbitMQ and the worker service."
+            )
 
         return redirect(url_for("index", message=message))
 

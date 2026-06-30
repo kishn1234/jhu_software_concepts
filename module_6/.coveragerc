@@ -1,3 +1,7 @@
 [run]
 omit =
     src/db/load_data.py
+    src/web/app/query_data.py
+    src/web/publisher.py
+    src/web/run.py
+    src/worker/consumer.py

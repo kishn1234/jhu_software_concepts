@@ -10,8 +10,8 @@ import psycopg
 
 
 DEFAULT_DB_NAME = "gradcafe"
-DATA_FILE = Path("applicant_data.json")
-LLM_FILE = Path("llm_extend_applicant_data.json")
+DATA_FILE = Path("/data/applicant_data.json")
+LLM_FILE = Path("/data/llm_extend_applicant_data.json")
 
 
 def clean_float(value):
