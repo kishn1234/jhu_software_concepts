@@ -187,6 +187,44 @@ def create_table(cur):
     );
     """)
 
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS ingestion_watermarks (
+        source TEXT PRIMARY KEY,
+        last_seen TEXT,
+        updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    """)
+
+
+def get_ingestion_watermark(cur, source="grad_cafe_applicants"):
+    """Return the last processed source watermark."""
+    cur.execute(
+        "SELECT last_seen FROM ingestion_watermarks WHERE source = %s;",
+        (source,),
+    )
+    row = cur.fetchone()
+    if row is None:
+        return None
+    return row[0]
+
+
+def update_ingestion_watermark(cur, last_seen, source="grad_cafe_applicants"):
+    """Advance the source watermark after successful processing."""
+    if last_seen is None:
+        return
+
+    cur.execute(
+        """
+        INSERT INTO ingestion_watermarks (source, last_seen, updated_at)
+        VALUES (%s, %s, now())
+        ON CONFLICT (source)
+        DO UPDATE SET
+            last_seen = EXCLUDED.last_seen,
+            updated_at = now();
+        """,
+        (source, last_seen),
+    )
+
 
 def build_applicant_record(row, p_id, llm_row=None):
     """Build a normalized applicant tuple for database insertion."""
@@ -259,6 +297,8 @@ def insert_applicants(cur, applicant_data, llm_data):
 
     inserted_count = 0
     skipped_count = 0
+    last_seen = get_ingestion_watermark(cur)
+    new_last_seen = last_seen
 
     for row in applicant_data:
         url = get_field(row, "url", "URL")
@@ -307,10 +347,17 @@ def insert_applicants(cur, applicant_data, llm_data):
                     %s, %s, %s, %s,
                     %s, %s, %s, %s,
                     %s, %s, %s, %s
-                );
+                )
+                ON CONFLICT (url) DO NOTHING;
                 """,
                 applicant_record,
             )
+
+        row_url = get_field(row, "url", "URL")
+        if row_url is not None:
+            new_last_seen = row_url
+
+    update_ingestion_watermark(cur, new_last_seen)
 
     return inserted_count, skipped_count
 

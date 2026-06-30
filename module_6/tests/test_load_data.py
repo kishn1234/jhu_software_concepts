@@ -207,7 +207,10 @@ def test_create_table_calls_execute():
 
         def execute(self, sql):
             self.called = True
-            assert "CREATE TABLE IF NOT EXISTS applicants" in sql
+            assert (
+                "CREATE TABLE IF NOT EXISTS applicants" in sql
+                or "CREATE TABLE IF NOT EXISTS ingestion_watermarks" in sql
+            )
 
     cursor = FakeCursor()
 
@@ -219,7 +222,7 @@ def test_create_table_calls_execute():
 def test_insert_applicants_inserts_and_skips_records():
     class FakeCursor:
         def __init__(self):
-            self.results = [10, 0, 1]
+            self.results = [10, None, 0, 1]
             self.insert_called = False
 
         def execute(self, sql, params=None):
@@ -420,3 +423,28 @@ def test_load_data_uses_database_url(monkeypatch, tmp_path):
     assert skipped == 0
     assert captured["args"] == ("postgresql://user:pass@localhost/gradcafe",)
     assert captured["kwargs"] == {}
+
+@pytest.mark.db
+def test_ingestion_watermark_helpers():
+    class FakeCursor:
+        def __init__(self):
+            self.executed = []
+            self.fetchone_result = ("url-123",)
+
+        def execute(self, sql, params=None):
+            self.executed.append((sql, params))
+
+        def fetchone(self):
+            return self.fetchone_result
+
+    cursor = FakeCursor()
+
+    assert load_data.get_ingestion_watermark(cursor) == "url-123"
+
+    cursor.fetchone_result = None
+    assert load_data.get_ingestion_watermark(cursor) is None
+
+    load_data.update_ingestion_watermark(cursor, "url-456")
+    load_data.update_ingestion_watermark(cursor, None)
+
+    assert any("ingestion_watermarks" in sql for sql, _ in cursor.executed)

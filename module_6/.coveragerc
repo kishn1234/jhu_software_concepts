@@ -5,3 +5,4 @@ omit =
     src/web/publisher.py
     src/web/run.py
     src/worker/consumer.py
+    src/worker/etl/incremental_scraper.py
